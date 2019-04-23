@@ -1,0 +1,78 @@
+# Open the needed Libraries
+library(DBI)
+# Open Database connection
+con <- dbConnect(odbc::odbc(), Driver="oracle", UID = "BAUSER", Port = "1522", PWD = rstudioapi::askForPassword("Database password:"), Host = "10.101.232.103", SVC = "busorclpdb.cc.ku.edu")
+
+#Read in Trump Dump Tweets
+trump_dump <- dbReadTable(con,"TRUMP_DUMP") 
+
+head(trump_dump)
+
+#View the Data Frame
+View(trump_dump)
+
+# Get the Tweet Text
+trump_dump_tweet <- trump_dump$TEXT
+head(trump_dump_tweet)
+
+# Clean up the Text in the tweet
+#convert all text to lower case -- This returns error so ignore
+trump_dump_tweet <- tolower(trump_dump_tweet)
+
+# Replace blank space (“rt”)
+trump_dump_tweet <- gsub("rt", "", trump_dump_tweet)
+
+# Replace @UserName
+trump_dump_tweet <- gsub("@\\w+", "", trump_dump_tweet)
+
+# Remove punctuation
+trump_dump_tweet <- gsub("[[:punct:]]", "", trump_dump_tweet)
+
+# Remove links
+trump_dump_tweet <- gsub("http\\w+", "", trump_dump_tweet)
+trump_dump_tweet <- gsub("https\\w+", "", trump_dump_tweet)
+
+# Remove tabs
+trump_dump_tweet <- gsub("[ |\t]{2,}", "", trump_dump_tweet)
+
+# Remove blank spaces at the beginning
+trump_dump_tweet <- gsub("^ ", "", trump_dump_tweet)
+
+# Remove blank spaces at the end
+trump_dump_tweet <- gsub(" $", "", trump_dump_tweet)
+
+# Look what Tweet looks like now!
+head(trump_dump_tweet)
+
+# Skip this section tm package will not load
+#clean up by removing stop words
+#trump_dump.text.corpus <- tm_map(trump_dump.text.corpus, function(x)removeWords(x,stopwords()))
+
+
+#library("wordcloud")
+#generate wordcloud
+# wordcloud(trump_dump.text.corpus,min.freq = 10,colors=brewer.pal(8, "Dark2"),random.color = TRUE,max.words = 500)
+
+##  Do Sentiment Analysis
+library("syuzhet")
+
+#getting emotions using in-built function
+mysentiment_trump<-get_nrc_sentiment((trump_dump_tweet))
+
+#calculationg total score for each sentiment
+Sentimentscores_trump<-data.frame(colSums(mysentiment_trump[,]))
+
+# Assign Names to the score
+names(Sentimentscores_trump)<-"Score"
+Sentimentscores_trump<-cbind("sentiment"=rownames(Sentimentscores_trump),Sentimentscores_trump)
+rownames(Sentimentscores_trump)<-NULL
+
+#plotting the sentiments with scores
+library(ggplot2)
+
+ggplot(data=Sentimentscores_trump,aes(x=sentiment,y=Score))+geom_bar(aes(fill=sentiment),stat = "identity")+
+  theme(legend.position="none")+
+  xlab("Sentiments")+ylab("scores")+ggtitle("Sentiments of people during TRUMP DUMP")
+
+# Disconnect from Database
+dbDisconnect(con)
